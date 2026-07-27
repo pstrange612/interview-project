@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WayfairGPT · Prompt Coach</title>
+<style>
+  :root {
+    --wf-purple: #7F187F;
+    --wf-purple-soft: #F6ECF4;
+    --wf-purple-border: #E6D3E1;
+    --wf-green: #3B7A2E;
+    --wf-green-soft: #EAF3E4;
+    --amber: #C6923E;
+    --red: #C0392B;
+    --rose: #B03A6E;
+    --rose-soft: #FBEEF3;
+    --ink: #2B2B2B;
+    --ink-2: #4A444A;
+    --ink-3: #5A545A;
+    --muted: #9B9299;
+    --muted-2: #B0A7AE;
+    --line: #EDE8EC;
+    --line-2: #E4DEE3;
+    --field-border: #D8CFD6;
+    --page: #F7F5F6;
+    --card: #FFFFFF;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--page);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .app {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 20px 18px 40px;
+  }
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .logo {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: var(--wf-purple);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 15px;
+  }
+  .masthead h1 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .masthead .sub { font-size: 12px; color: var(--muted); margin: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* ---- chat column ---- */
+  .chat {
+    background: var(--card);
+    border: 0.5px solid var(--line-2);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 520px;
+  }
+  .chat-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 12px 15px;
+    border-bottom: 0.5px solid var(--line);
+  }
+  .chat-head .wf { width: 24px; height: 24px; border-radius: 6px; background: var(--wf-purple); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:13px; }
+  .chat-head .name { font-size: 13px; font-weight: 600; }
+  .chat-head .user { margin-left: auto; display:flex; align-items:center; gap:8px; }
+  .chat-head .user span { font-size: 12px; color: var(--ink-3); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: #EAD9E6; color: var(--wf-purple); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:11px; }
+
+  .thread {
+    flex: 1;
+    padding: 18px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .bubble { max-width: 80%; font-size: 13px; line-height: 1.55; padding: 10px 13px; }
+  .bubble.user { align-self: flex-end; background: var(--wf-purple); color: #fff; border-radius: 13px 13px 4px 13px; }
+  .bubble.bot { align-self: flex-start; background: #F2EEF1; color: var(--ink-2); border-radius: 13px 13px 13px 4px; white-space: pre-wrap; }
+  .bubble.bot.typing { color: var(--muted); letter-spacing: 2px; }
+  .thread .empty { margin: auto; color: var(--muted-2); font-size: 13px; text-align: center; max-width: 260px; }
+
+  .composer {
+    border-top: 0.5px solid var(--line);
+    padding: 13px 15px;
+  }
+  #promptInput {
+    width: 100%;
+    min-height: 46px;
+    max-height: 140px;
+    resize: none;
+    border: 0.5px solid var(--field-border);
+    border-radius: 9px;
+    padding: 11px 12px;
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: #FCFBFC;
+    outline: none;
+  }
+  #promptInput:focus { border-color: var(--wf-purple); box-shadow: 0 0 0 2px rgba(127,24,127,0.08); }
+  .composer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .composer-row .hint { font-size: 11px; color: var(--muted-2); }
+  .btn {
+    font-family: var(--font);
+    font-size: 13px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    padding: 8px 18px;
+    background: var(--wf-purple);
+    color: #fff;
+    font-weight: 500;
+  }
+  .btn:hover { background: #6d156d; }
+  .btn:active { transform: scale(0.98); }
+  .btn.ghost { background: #fff; border: 0.5px solid var(--field-border); color: var(--ink-3); }
+  .btn.ghost:hover { background: #FAF7F9; }
+  .btn:focus-visible { outline: 2px solid var(--wf-purple); outline-offset: 2px; }
+
+  /* ---- starter chips (inside coach) ---- */
+  .starters { padding: 12px 14px 4px; }
+  .starters .lbl { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; padding: 5px 11px; border-radius: 999px;
+    background: #fff; border: 0.5px solid var(--field-border);
+    color: var(--ink-3); cursor: pointer; font-family: var(--font);
+  }
+  .chip:hover { border-color: var(--wf-purple); color: var(--wf-purple); }
+  .chip:active { transform: scale(0.97); }
+  .chip.active { background: var(--wf-purple); border-color: var(--wf-purple); color: #fff; }
+  .chip.active:hover { color: #fff; }
+
+  /* ---- coach panel ---- */
+  .coach {
+    background: var(--card);
+    border: 0.5px solid var(--line-2);
+    border-radius: 12px;
+    overflow: hidden;
+    position: sticky;
+    top: 16px;
+  }
+  .coach-head {
+    padding: 12px 14px;
+    border-bottom: 0.5px solid var(--line);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .coach-head .t { font-size: 12px; font-weight: 600; }
+  .coach-head .live { margin-left: auto; font-size: 10px; color: var(--muted); display:flex; align-items:center; gap:5px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); display:inline-block; }
+  .dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  .coach-body { padding: 14px; }
+  .coach-empty { color: var(--muted-2); font-size: 12px; line-height: 1.6; text-align: center; padding: 20px 6px; }
+
+  .scoreline { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; }
+  .scoreline .num { font-size: 28px; font-weight: 600; line-height: 1; }
+  .scoreline .den { font-size: 12px; color: var(--muted); }
+  .scoreline .tag { margin-left: auto; font-size: 11px; padding: 2px 9px; border-radius: 5px; font-weight: 500; }
+  .track { height: 4px; background: #EFE9ED; border-radius: 2px; margin: 12px 0 15px; overflow: hidden; }
+  .track > div { height: 100%; border-radius: 2px; transition: width 0.35s ease; }
+
+  .dims { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+  .dim { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+  .dim .mark { width: 15px; text-align: center; font-weight: 600; }
+  .dim .dname { color: var(--ink-3); flex: 1; }
+  .dim .note { font-size: 10px; color: var(--muted); }
+  .mark.miss { color: var(--red); }
+  .mark.weak { color: var(--amber); }
+  .mark.ok { color: var(--wf-green); }
+
+  .topfix {
+    background: #FAF6F9; border: 0.5px solid var(--wf-purple-border);
+    border-radius: 8px; padding: 11px 12px; margin-bottom: 15px;
+  }
+  .topfix .h { font-size: 11px; color: var(--wf-purple); font-weight: 600; margin-bottom: 6px; }
+  .topfix .b { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+
+  .rewrite {
+    border: 1px solid var(--wf-purple);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .rewrite .r-head {
+    background: var(--wf-purple-soft);
+    padding: 9px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--wf-purple-border);
+  }
+  .rewrite .r-head .l { font-size: 11px; color: var(--wf-purple); font-weight: 600; }
+  .rewrite .r-head .delta { font-size: 11px; color: var(--wf-green); font-weight: 600; background: var(--wf-green-soft); padding: 2px 9px; border-radius: 5px; }
+  .rewrite .r-body { padding: 12px; }
+  .rewrite .r-text { font-size: 12px; color: var(--ink); line-height: 1.55; margin-bottom: 12px; }
+  .rewrite .r-actions { display: flex; gap: 8px; }
+  .rewrite .r-actions .btn { flex: 1; padding: 9px; font-weight: 500; }
+  .rewrite .r-actions .btn.ghost { flex: 0 0 auto; padding: 9px 13px; }
+
+  .accepted-note { font-size: 11px; color: var(--wf-green); margin-top: 10px; display: none; align-items: center; gap: 6px; }
+  .accepted-note.show { display: flex; }
+  .strong-note { font-size: 12px; color: var(--wf-green); display: flex; align-items: center; gap: 7px; background: var(--wf-green-soft); border-radius: 8px; padding: 11px 12px; line-height: 1.45; }
+
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: 1fr; }
+    .coach { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="masthead">
+    <div class="logo">W</div>
+    <div>
+      <h1>WayfairGPT</h1>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- CHAT -->
+    <div class="chat">
+      <div class="chat-head">
+        <div class="wf">W</div>
+        <div class="name">WayfairGPT</div>
+        <div class="user">
+          <span>Dana Reyes</span>
+          <div class="avatar">DR</div>
+        </div>
+      </div>
+      <div class="thread" id="thread">
+        <div class="empty">Ask WayfairGPT anything.</div>
+      </div>
+      <div class="composer">
+        <textarea id="promptInput" placeholder="Message WayfairGPT"></textarea>
+        <div class="composer-row">
+          <span class="hint" id="composerHint"></span>
+          <button class="btn" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COACH -->
+    <div class="coach">
+      <div class="coach-head">
+        <span class="t">Prompt coach</span>
+        <span class="live"><span class="dot" id="liveDot"></span><span id="liveLabel">idle</span></span>
+      </div>
+      <div class="starters">
+        <div class="lbl">Starter templates</div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="coach-body" id="coachBody">
+        <div class="coach-empty">Pick a starter template or paste your own prompt. The coach scores it across five dimensions of a strong prompt.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   WayfairGPT Prompt Coach
+   Deterministic prompt-engineering scoring engine.
+   Five dimensions grounded in established prompt-engineering
+   principles: role, task clarity, context/data, constraints/
+   format, examples. Scoring is rule-based and inspectable —
+   no model call, same input always yields same output.
+   ============================================================ */
+
+/* ---- Starter templates (a product feature): strong, ready-to-use
+        reference prompts per team. A user picks one as a jumping-off
+        point. They model what good looks like and score ~9. ---- */
+const SCENARIOS = [
+  {
+    id: 'copywriter',
+    label: 'Copywriter',
+    starter: 'You are a merchandising copywriter for a home goods retailer. Write a 50-word product description for a mid-century walnut coffee table with hairpin legs, aimed at design-conscious shoppers. Keep the tone warm and concise. Return one short paragraph plus three bullet highlights.'
+  },
+  {
+    id: 'marketing',
+    label: 'Marketing',
+    starter: 'You are a merchandising analyst. Using the last 30 days of homepage sell-through and margin data for living room furniture, list the top 5 products to feature. For each, give one line on why it earns the slot.'
+  },
+  {
+    id: 'logistics',
+    label: 'Logistics',
+    starter: 'You are a fulfillment analyst. For open orders in the East Coast distribution lanes, show current shipment lead times against our 5-day SLA. Flag any order tracking above 5 days. Return a table sorted by delay, longest first.'
+  }
+];
+
+/* ---- Demo scripts (paste-to-work): when the sent prompt matches one
+        of these, WayfairGPT returns the quality-matched scripted
+        answer. Keyed on normalized prompt text so pasting works
+        regardless of the chips. These power the bad -> typical ->
+        strong narrative you drive from your speaker notes. ---- */
+const DEMO_ANSWERS = [
+  {
+    match: 'write a description for this coffee table',
+    answer: "Introducing our coffee table \u2014 a great addition to any living room. This stylish and versatile piece is perfect for your home. Made with quality materials, it offers both function and style. Whether you're relaxing or entertaining, this coffee table is sure to impress. Shop now and elevate your space today!"
+  },
+  {
+    match: 'write a product description for our new walnut coffee table, make it sound nice and appealing to customers',
+    answer: "Meet our beautiful new walnut coffee table, a stunning centerpiece that brings warmth and character to any living space. Crafted from rich walnut with a gorgeous natural grain, this table combines timeless design with everyday practicality. Its sleek silhouette works effortlessly with both modern and traditional decor, making it a versatile choice for any home. The spacious surface is perfect for morning coffee, evening drinks, or displaying your favorite books and decor. Durable, elegant, and endlessly stylish, this is a piece you'll love for years to come. Add it to your cart today and transform your living room into a space that feels truly your own."
+  },
+  {
+    match: 'you are a merchandising copywriter for a home goods retailer. write a 50-word product description for a mid-century walnut coffee table with hairpin legs, aimed at design-conscious shoppers. keep the tone warm and concise. return one short paragraph plus three bullet highlights.',
+    answer: "Grounded in mid-century lines, this walnut coffee table pairs a warm, grain-forward top with slim black hairpin legs \u2014 a quiet statement piece for a considered room.\n\n\u2022 Solid walnut top with a hand-finished natural grain\n\u2022 Tapered steel hairpin legs for an airy, low profile\n\u2022 42\u2033 surface sized for sofas and sectionals alike"
+  }
+];
+
+function findDemoAnswer(text) {
+  const norm = (text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const hit = DEMO_ANSWERS.find(d => d.match === norm);
+  return hit ? hit.answer : null;
+}
+
+/* ---- Score-based fallback answers ----
+   When a sent prompt isn't one of the exact scripted showcases
+   (e.g. an accepted rewrite, or a prompt typed live), the answer
+   quality still tracks the prompt score: weak prompt -> weak answer,
+   strong prompt -> strong answer. This keeps output quality and
+   prompt quality aligned no matter what gets sent. ---- */
+function fallbackAnswer(score) {
+  if (score >= 8) {
+    return "Grounded in mid-century lines, this walnut coffee table pairs a warm, grain-forward top with slim hairpin legs \u2014 a quiet statement piece for a considered room.\n\n\u2022 Solid walnut top with a hand-finished natural grain\n\u2022 Tapered steel hairpin legs for an airy, low profile\n\u2022 42\u2033 surface sized for sofas and sectionals alike";
+  }
+  if (score >= 5) {
+    return "Meet our walnut coffee table, a lovely addition that brings warmth to any living space. Crafted from rich walnut with a natural grain, it blends timeless style with everyday practicality and works with both modern and traditional decor. A versatile, durable centerpiece you'll enjoy for years \u2014 add it to your space today.";
+  }
+  return "Introducing our coffee table \u2014 a great addition to any living room. This stylish and versatile piece is perfect for your home. Made with quality materials, it offers both function and style. Shop now and elevate your space today!";
+}
+
+/* Resolve the WayfairGPT answer for a sent prompt: exact scripted
+   showcase first, then score-based fallback. */
+function resolveAnswer(text, score) {
+  return findDemoAnswer(text) || fallbackAnswer(score);
+}
+
+/* ---- Scoring rubric ----
+   Each dimension returns a status: 'ok' | 'weak' | 'miss' (or 'na').
+   Detection is heuristic and transparent. Points: ok=2, weak=1,
+   miss=0, na counts as satisfied (2) so irrelevant dims don't
+   penalize. Final /10. ---- */
+
+const ROLE_CUES = /\b(you are|act as|as an? (expert|analyst|copywriter|specialist|manager|assistant)|your role)\b/i;
+const FORMAT_CUES = /\b(table|bullet|bullets|list|paragraph|words?|sentences?|json|csv|column|rows?|format|sorted|rank|ranked|top \d+|no more than|under \d+|one line|per each|\d+\s*(word|bullet|item|point|highlight))\b/i;
+// Real grounding: points to data, a source, a scope, or concrete
+// descriptors — not just naming a subject noun.
+const CONTEXT_CUES = /\b(using|based on|from the|for the (last|past|open|east|west|north|south)|last \d+|past \d+|q[1-4]|\d+ days|data|report|sell-through|margin|revenue|inventory|dataset|history|lanes?|distribution|open orders|walnut|mid-century|hairpin|against (our|the))\b/i;
+const CONSTRAINT_CUES = /\b(only|must|should|exclude|include|limit|flag|threshold|sla|above|below|between|no more than|at least|sorted|sort|prioriti|order by|tracking|aimed at|keep the|for each)\b/i;
+const EXAMPLE_CUES = /\b(for example|e\.g\.|like this|such as|here('| i)s an example|sample:|template:)\b/i;
+const VAGUE_VERBS = /\b(help( me)? with|do|make|give me|show me|tell me|get me|write|create|build|list|flag|show)\b/i;
+const SPECIFIC_SIGNALS = /\b(\d+|specific|exactly|following|these|top \d+|walnut|mid-century|hairpin|east coast|homepage|living room|distribution|sell-through|margin|sla|open orders)\b/i;
+
+function analyze(text) {
+  const t = (text || '').trim();
+  const words = t ? t.split(/\s+/).length : 0;
+
+  if (words < 3) return null;
+
+  const dims = [];
+
+  // 1. Role / persona
+  dims.push({
+    key: 'role', name: 'Role / persona',
+    status: ROLE_CUES.test(t) ? 'ok' : 'miss'
+  });
+
+  // 2. Task clarity — has a verb, but is it specific?
+  const hasVerb = VAGUE_VERBS.test(t);
+  const isSpecific = SPECIFIC_SIGNALS.test(t) && words >= 12;
+  let taskStatus = 'weak';
+  if (hasVerb && isSpecific) taskStatus = 'ok';
+  else if (hasVerb && words < 8) taskStatus = 'weak';
+  else if (!hasVerb) taskStatus = 'weak';
+  dims.push({ key: 'task', name: 'Task clarity', status: taskStatus });
+
+  // 3. Context / data
+  dims.push({
+    key: 'context', name: 'Context / data',
+    status: CONTEXT_CUES.test(t) ? 'ok' : 'miss'
+  });
+
+  // 4. Constraints / format
+  const hasFormat = FORMAT_CUES.test(t);
+  const hasConstraint = CONSTRAINT_CUES.test(t);
+  let cfStatus = 'miss';
+  if (hasFormat && hasConstraint) cfStatus = 'ok';
+  else if (hasFormat || hasConstraint) cfStatus = 'weak';
+  dims.push({ key: 'format', name: 'Constraints / format', status: cfStatus });
+
+  // 5. Examples — often not needed. Mark 'na' unless the task is
+  //    tone/style-heavy (copy) and no example given.
+  const needsExample = /\b(tone|style|voice|match the|consistent with|brand)\b/i.test(t);
+  let exStatus = 'na';
+  if (EXAMPLE_CUES.test(t)) exStatus = 'ok';
+  else if (needsExample) exStatus = 'weak';
+  dims.push({ key: 'examples', name: 'Examples', status: exStatus });
+
+  // Score
+  const pts = dims.reduce((s, d) => {
+    if (d.status === 'ok' || d.status === 'na') return s + 2;
+    if (d.status === 'weak') return s + 1;
+    return s;
+  }, 0);
+  const score = Math.round((pts / (dims.length * 2)) * 10);
+
+  return { dims, score, words };
+}
+
+/* ---- Top-fix copy per dimension ---- */
+const FIX_COPY = {
+  role: 'Assign a role. Start with who the model should be, e.g. "You are a merchandising analyst." It sharpens tone and judgment.',
+  task: 'Sharpen the task. Replace the vague verb with a specific instruction — what exactly to produce, and about what.',
+  context: 'Name the data to ground in — category, time window, and metric. WayfairGPT retrieves better when the prompt says which data to pull.',
+  format: 'Specify the output. State length, structure, and any constraints, e.g. "a table sorted by delay" or "50 words, three bullets."',
+  examples: 'Add an example. When tone or structure matters, show one sample so the output matches what you expect.'
+};
+
+function topFix(dims) {
+  const order = ['context', 'role', 'format', 'task', 'examples'];
+  for (const key of order) {
+    const d = dims.find(x => x.key === key);
+    if (d && (d.status === 'miss' || d.status === 'weak')) return FIX_COPY[key];
+  }
+  return 'This prompt is well structured. Minor polish only.';
+}
+
+/* ---- Rewrite constructor ----
+   Builds an improved prompt from whatever the user typed, applying
+   the dimensions the rubric flagged as missing or weak. Deterministic
+   and transparent — it prepends a role, wraps the core ask, and
+   appends grounding/format scaffolding. In production this step would
+   call the model; here it's rule-based so the demo has no dependency.
+   Role hints are inferred from the active team when a starter set the
+   context, otherwise a neutral analyst role is used. ---- */
+const ROLE_BY_TEAM = {
+  copywriter: 'You are a merchandising copywriter for a home goods retailer.',
+  marketing: 'You are a merchandising analyst.',
+  logistics: 'You are a fulfillment analyst.',
+  _default: 'You are a knowledgeable analyst for a home goods retailer.'
+};
+
+function buildRewrite(text, dims, teamId) {
+  const t = (text || '').trim().replace(/\s+/g, ' ');
+  const need = k => {
+    const d = dims.find(x => x.key === k);
+    return d && (d.status === 'miss' || d.status === 'weak');
+  };
+
+  // Is this a creative/copy task or an analytical/data task? Drives
+  // whether "grounding" means product details or dataset scope.
+  const isCopy = teamId === 'copywriter' || /\b(write|describe|description|copy|tagline|headline|caption|blurb)\b/i.test(t);
+
+  let core = t.replace(/[.]+$/, '');
+  const parts = [];
+
+  // Role
+  if (need('role')) {
+    parts.push(ROLE_BY_TEAM[teamId] || ROLE_BY_TEAM._default);
+  }
+
+  // Task — keep the user's ask
+  let ask = core.charAt(0).toUpperCase() + core.slice(1);
+  parts.push(ask + '.');
+
+  // Context / data grounding — phrased for the task type
+  if (need('context')) {
+    if (isCopy) {
+      parts.push('Include the specifics that shape the copy — product name, material, key features, and who the audience is.');
+    } else {
+      parts.push('Ground your answer in the relevant Wayfair data — name the category, time window, and metric that apply.');
+    }
+  }
+
+  // Constraints / format
+  if (need('format')) {
+    if (isCopy) {
+      parts.push('State the length and structure you want, for example 50 words as one paragraph plus three bullet highlights.');
+    } else {
+      parts.push('Return the result in a clear, structured format such as a sorted table, and state any limits like the number of items.');
+    }
+  }
+
+  // Examples
+  if (need('examples')) {
+    parts.push('If tone or structure matters, include one short example of the output you expect.');
+  }
+
+  return parts.join(' ');
+}
+
+function scoreTag(score) {
+  if (score >= 8) return { label: 'strong', color: 'var(--wf-green)', bg: 'var(--wf-green-soft)', bar: 'var(--wf-green)' };
+  if (score >= 5) return { label: 'okay', color: 'var(--amber)', bg: '#FBF3E6', bar: 'var(--amber)' };
+  return { label: 'needs work', color: 'var(--rose)', bg: 'var(--rose-soft)', bar: 'var(--rose)' };
+}
+
+function markClass(status) {
+  if (status === 'ok' || status === 'na') return 'ok';
+  if (status === 'weak') return 'weak';
+  return 'miss';
+}
+function markGlyph(status) {
+  if (status === 'ok') return '\u2713';
+  if (status === 'na') return '\u2713';
+  if (status === 'weak') return '\u25B3';
+  return '\u2715';
+}
+
+/* ============================================================
+   Observability — the instrumentation is built in.
+   Nothing surfaces to the user. Events live in-memory and are
+   exposed on window.__coachEvents so they can be inspected in
+   the browser console if a stakeholder asks to see them.
+
+   Event model:
+   - PRIMARY event fires on SUBMIT: re-scores the live composer
+     content at send time, so post-accept edits are captured.
+     This is the ground-truth quality signal.
+   - SECONDARY event fires on ACCEPT: an intent signal that the
+     user chose to adopt the suggestion.
+   ============================================================ */
+const CoachTelemetry = (function () {
+  const events = [];
+  let sessionId = 'sess_' + Math.random().toString(36).slice(2, 9);
+  let currentScenario = null;
+  let lastAccept = null; // score at accept, for accept→submit delta
+
+  function log(type, payload) {
+    const evt = Object.assign({
+      type,
+      session_id: sessionId,
+      use_case: currentScenario,
+      ts: new Date().toISOString()
+    }, payload);
+    events.push(evt);
+    window.__coachEvents = events;
+    // eslint-disable-next-line no-console
+    console.log('[coach:telemetry]', evt);
+    return evt;
+  }
+
+  return {
+    setScenario(s) { currentScenario = s; },
+    accept(scoreBefore, scoreAfter, weakDims) {
+      lastAccept = scoreAfter;
+      return log('suggestion_accepted', {
+        score_before: scoreBefore,
+        score_after: scoreAfter,
+        weak_dimensions: weakDims
+      });
+    },
+    submit(score, weakDims, coachUsed) {
+      const evt = log('prompt_submitted', {
+        score_at_submit: score,
+        weak_dimensions: weakDims,
+        coach_used: coachUsed,
+        score_at_accept: lastAccept,
+        // reveals whether the user degraded or improved the
+        // accepted prompt before actually sending it
+        post_accept_delta: (lastAccept != null) ? (score - lastAccept) : null
+      });
+      lastAccept = null;
+      return evt;
+    },
+    all() { return events.slice(); }
+  };
+})();
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+const input = document.getElementById('promptInput');
+const thread = document.getElementById('thread');
+const coachBody = document.getElementById('coachBody');
+const chipsEl = document.getElementById('chips');
+const liveDot = document.getElementById('liveDot');
+const liveLabel = document.getElementById('liveLabel');
+const sendBtn = document.getElementById('sendBtn');
+
+let activeScenario = null;
+let currentAnalysis = null;
+let currentRewrite = '';
+let currentProjected = 0;
+let coachUsedThisTurn = false;
+let debounceTimer = null;
+
+// Build scenario chips
+SCENARIOS.forEach((s, i) => {
+  const c = document.createElement('button');
+  c.className = 'chip';
+  c.textContent = s.label;
+  c.onclick = () => toggleScenario(s, c);
+  chipsEl.appendChild(c);
+});
+
+function toggleScenario(s, chipEl) {
+  // clicking the already-selected chip clears it
+  if (chipEl.classList.contains('active')) {
+    clearScenario();
+    return;
+  }
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chipEl.classList.add('active');
+  loadScenario(s);
+}
+
+function clearScenario() {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  activeScenario = null;
+  coachUsedThisTurn = false;
+  CoachTelemetry.setScenario(null);
+  input.value = '';
+  autoGrow();
+  runLiveScore();
+  input.focus();
+}
+
+function loadScenario(s) {
+  activeScenario = s;
+  coachUsedThisTurn = false;
+  CoachTelemetry.setScenario(s.id);
+  input.value = s.starter;
+  input.focus();
+  autoGrow();
+  runLiveScore();
+}
+
+input.addEventListener('input', () => {
+  autoGrow();
+  // if the text no longer matches the loaded starter, the chip
+  // selection is stale — clear the highlight (but keep the text)
+  if (activeScenario && input.value.trim() !== activeScenario.starter.trim()) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    activeScenario = null;
+    CoachTelemetry.setScenario(null);
+  }
+  liveLabel.textContent = 'analyzing';
+  liveDot.classList.add('pulse');
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runLiveScore, 260);
+});
+
+function autoGrow() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+}
+
+function runLiveScore() {
+  liveDot.classList.remove('pulse');
+  const text = input.value;
+  const analysis = analyze(text);
+  currentAnalysis = analysis;
+
+  if (!analysis) {
+    liveLabel.textContent = 'idle';
+    coachBody.innerHTML = '<div class="coach-empty">Pick a starter template or paste your own prompt. The coach scores it across five dimensions of a strong prompt.</div>';
+    return;
+  }
+  liveLabel.textContent = 'live';
+  renderCoach(analysis);
+}
+
+function weakDimKeys(analysis) {
+  return analysis.dims.filter(d => d.status === 'miss' || d.status === 'weak').map(d => d.key);
+}
+
+function renderCoach(analysis) {
+  const tag = scoreTag(analysis.score);
+  const dimsHtml = analysis.dims.map(d => `
+    <div class="dim">
+      <span class="mark ${markClass(d.status)}">${markGlyph(d.status)}</span>
+      <span class="dname">${d.name}</span>
+      ${d.status === 'na' ? '<span class="note">n/a</span>' : ''}
+    </div>`).join('');
+
+  const teamId = activeScenario ? activeScenario.id : null;
+  const showRewrite = analysis.score < 8;
+
+  let builtRewrite = '';
+  let projected = analysis.score;
+  if (showRewrite) {
+    builtRewrite = buildRewrite(input.value, analysis.dims, teamId);
+    const reAnalysis = analyze(builtRewrite);
+    projected = reAnalysis ? reAnalysis.score : analysis.score;
+  }
+  // stash for accept
+  currentRewrite = builtRewrite;
+  currentProjected = projected;
+
+  coachBody.innerHTML = `
+    <div class="scoreline">
+      <span class="num" style="color:${tag.color}">${analysis.score}</span>
+      <span class="den">/ 10</span>
+      <span class="tag" style="color:${tag.color}; background:${tag.bg}">${tag.label}</span>
+    </div>
+    <div class="track"><div style="width:${analysis.score * 10}%; background:${tag.bar}"></div></div>
+    <div class="dims">${dimsHtml}</div>
+    <div class="topfix">
+      <div class="h">Top fix</div>
+      <div class="b">${topFix(analysis.dims)}</div>
+    </div>
+    ${showRewrite ? `
+    <div class="rewrite">
+      <div class="r-head">
+        <span class="l">Suggested rewrite</span>
+        <span class="delta">${analysis.score} &rarr; ${projected}</span>
+      </div>
+      <div class="r-body">
+        <div class="r-text">${builtRewrite}</div>
+        <div class="r-actions">
+          <button class="btn" id="acceptBtn">Accept rewrite</button>
+          <button class="btn ghost" id="reanalyzeBtn">Re-analyze</button>
+        </div>
+        <div class="accepted-note" id="acceptedNote"><span class="dot" style="background:var(--wf-green)"></span>Rewrite applied. Edit freely before sending.</div>
+      </div>
+    </div>` : `
+    <div class="strong-note">
+      <span class="dot" style="background:var(--wf-green)"></span>
+      Strong prompt. All five dimensions are covered — good to send.
+    </div>`}
+  `;
+
+  if (showRewrite) {
+    document.getElementById('acceptBtn').onclick = () => acceptRewrite(analysis);
+    document.getElementById('reanalyzeBtn').onclick = runLiveScore;
+  }
+}
+
+function acceptRewrite(prevAnalysis) {
+  const before = prevAnalysis.score;
+  const weak = weakDimKeys(prevAnalysis);
+  // apply the constructed rewrite into the composer
+  input.value = currentRewrite;
+  autoGrow();
+  coachUsedThisTurn = true;
+  // SECONDARY event: intent to adopt (score_after = re-scored rewrite)
+  CoachTelemetry.accept(before, currentProjected, weak);
+  // re-score the now-applied text (ground truth of what's in composer)
+  runLiveScore();
+  const note = document.getElementById('acceptedNote');
+  if (note) note.classList.add('show');
+}
+
+sendBtn.onclick = sendPrompt;
+
+function sendPrompt() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  // clear empty-state
+  const empty = thread.querySelector('.empty');
+  if (empty) empty.remove();
+
+  // PRIMARY event: re-score live composer content at submit
+  const submitAnalysis = analyze(text) || { score: 0, dims: [] };
+  CoachTelemetry.submit(submitAnalysis.score, weakDimKeys(submitAnalysis), coachUsedThisTurn);
+
+  // render user bubble
+  const ub = document.createElement('div');
+  ub.className = 'bubble user';
+  ub.textContent = text;
+  thread.appendChild(ub);
+  thread.scrollTop = thread.scrollHeight;
+
+  // WayfairGPT answer. Exact scripted showcase if the prompt matches
+  // one; otherwise a score-based answer so quality always tracks the
+  // prompt. A short delay mimics the model thinking.
+  const answer = resolveAnswer(text, submitAnalysis.score);
+
+  const bb = document.createElement('div');
+  bb.className = 'bubble bot typing';
+  bb.textContent = '\u2026';
+  thread.appendChild(bb);
+  thread.scrollTop = thread.scrollHeight;
+
+  const reveal = () => {
+    bb.classList.remove('typing');
+    bb.textContent = answer; // supports newlines via CSS white-space
+    thread.scrollTop = thread.scrollHeight;
+  };
+  setTimeout(reveal, 650);
+
+  // reset composer and coach state for next turn
+  input.value = '';
+  autoGrow();
+  coachUsedThisTurn = false;
+  activeScenario = null;
+  CoachTelemetry.setScenario(null);
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  runLiveScore();
+  input.focus();
+}
+
+// keyboard: Cmd/Ctrl+Enter to send
+input.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendPrompt(); }
+});
+</script>
+</body>
+</html>
