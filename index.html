@@ -335,6 +335,28 @@ function findDemoAnswer(text) {
   return hit ? hit.answer : null;
 }
 
+/* ---- Score-based fallback answers ----
+   When a sent prompt isn't one of the exact scripted showcases
+   (e.g. an accepted rewrite, or a prompt typed live), the answer
+   quality still tracks the prompt score: weak prompt -> weak answer,
+   strong prompt -> strong answer. This keeps output quality and
+   prompt quality aligned no matter what gets sent. ---- */
+function fallbackAnswer(score) {
+  if (score >= 8) {
+    return "Grounded in mid-century lines, this walnut coffee table pairs a warm, grain-forward top with slim hairpin legs \u2014 a quiet statement piece for a considered room.\n\n\u2022 Solid walnut top with a hand-finished natural grain\n\u2022 Tapered steel hairpin legs for an airy, low profile\n\u2022 42\u2033 surface sized for sofas and sectionals alike";
+  }
+  if (score >= 5) {
+    return "Meet our walnut coffee table, a lovely addition that brings warmth to any living space. Crafted from rich walnut with a natural grain, it blends timeless style with everyday practicality and works with both modern and traditional decor. A versatile, durable centerpiece you'll enjoy for years \u2014 add it to your space today.";
+  }
+  return "Introducing our coffee table \u2014 a great addition to any living room. This stylish and versatile piece is perfect for your home. Made with quality materials, it offers both function and style. Shop now and elevate your space today!";
+}
+
+/* Resolve the WayfairGPT answer for a sent prompt: exact scripted
+   showcase first, then score-based fallback. */
+function resolveAnswer(text, score) {
+  return findDemoAnswer(text) || fallbackAnswer(score);
+}
+
 /* ---- Scoring rubric ----
    Each dimension returns a status: 'ok' | 'weak' | 'miss' (or 'na').
    Detection is heuristic and transparent. Points: ok=2, weak=1,
@@ -763,10 +785,10 @@ function sendPrompt() {
   thread.appendChild(ub);
   thread.scrollTop = thread.scrollHeight;
 
-  // WayfairGPT answer. If the sent prompt matches one of the demo
-  // scripts (by text, so pasting works), show its quality-matched
-  // answer. Otherwise a neutral ack. A short delay mimics thinking.
-  const scriptedAnswer = findDemoAnswer(text);
+  // WayfairGPT answer. Exact scripted showcase if the prompt matches
+  // one; otherwise a score-based answer so quality always tracks the
+  // prompt. A short delay mimics the model thinking.
+  const answer = resolveAnswer(text, submitAnalysis.score);
 
   const bb = document.createElement('div');
   bb.className = 'bubble bot typing';
@@ -776,11 +798,7 @@ function sendPrompt() {
 
   const reveal = () => {
     bb.classList.remove('typing');
-    if (scriptedAnswer) {
-      bb.textContent = scriptedAnswer; // supports newlines via CSS white-space
-    } else {
-      bb.textContent = 'Got it \u2014 that\u2019s a clear, well-scoped prompt. Pulling the data and drafting a response now.';
-    }
+    bb.textContent = answer; // supports newlines via CSS white-space
     thread.scrollTop = thread.scrollHeight;
   };
   setTimeout(reveal, 650);
